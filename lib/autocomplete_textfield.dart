@@ -36,7 +36,7 @@ class AutoCompleteTextField<T> extends StatefulWidget {
       @required this.itemBuilder,
       @required this.itemSorter,
       @required this.itemFilter,
-      this.suggestionsAmount: 5,
+      this.suggestionsAmount: 100,
       this.submitOnSuggestionTap: true,
       this.clearOnSubmit: true,
       this.textInputAction: TextInputAction.done,
@@ -78,6 +78,7 @@ class AutoCompleteTextField<T> extends StatefulWidget {
 }
 
 class AutoCompleteTextFieldState<T> extends State<AutoCompleteTextField> {
+  final FocusNode _focus = new FocusNode();
   TextField textField;
   List<T> suggestions;
   StringCallback textChanged, textSubmitted;
@@ -88,6 +89,7 @@ class AutoCompleteTextFieldState<T> extends State<AutoCompleteTextField> {
   Filter<T> itemFilter;
   int suggestionsAmount;
   bool submitOnSuggestionTap, clearOnSubmit;
+  double suggestionBoxHeight = 200.0;
 
   String currentText = "";
 
@@ -111,15 +113,17 @@ class AutoCompleteTextFieldState<T> extends State<AutoCompleteTextField> {
       decoration: decoration,
       style: style,
       keyboardType: keyboardType,
-      focusNode: new FocusNode(),
+      focusNode: _focus,
       controller: new TextEditingController(),
       textInputAction: textInputAction,
+      onTap: _onTextFieldTap,
       onChanged: (newText) {
         currentText = newText;
         textChanged(newText);
         updateOverlay(newText);
       },
       onSubmitted: (submittedText) {
+        FocusScope.of(context).requestFocus(new FocusNode());
         textSubmitted(submittedText);
         print(submittedText);
         if (clearOnSubmit) {
@@ -156,6 +160,11 @@ class AutoCompleteTextFieldState<T> extends State<AutoCompleteTextField> {
     updateOverlay(currentText);
   }
 
+  void _onTextFieldTap() {
+    updateOverlay(
+        textField.controller.text?.isEmpty ? '' : textField.controller.text);
+  }
+
   void updateOverlay(String query) {
     if (listSuggestionsEntry == null) {
       final RenderBox textFieldRenderBox = context.findRenderObject();
@@ -179,8 +188,10 @@ class AutoCompleteTextFieldState<T> extends State<AutoCompleteTextField> {
             left: position.left,
             child: new Container(
                 width: width,
+                height: _focus.hasFocus ? suggestionBoxHeight : 0.0,
                 child: new Card(
-                    child: new Column(
+                    child: new ListView(
+                  shrinkWrap: true,
                   children: filteredSuggestions.map((suggestion) {
                     return new Row(children: [
                       new Expanded(
@@ -190,7 +201,6 @@ class AutoCompleteTextFieldState<T> extends State<AutoCompleteTextField> {
                                 setState(() {
                                   if (submitOnSuggestionTap) {
                                     String newText = suggestion.toString();
-                                    textField.controller.text = newText;
                                     textField.focusNode.unfocus();
                                     textSubmitted(newText);
                                     if (clearOnSubmit) {
@@ -212,14 +222,12 @@ class AutoCompleteTextFieldState<T> extends State<AutoCompleteTextField> {
 
     filteredSuggestions = getSuggestions(
         suggestions, itemSorter, itemFilter, suggestionsAmount, query);
+        suggestionBoxHeight = updateSuggestionBoxHeight();
     listSuggestionsEntry.markNeedsBuild();
   }
 
   List<T> getSuggestions(List<T> suggestions, Comparator<T> sorter,
       Filter<T> filter, int maxAmount, String query) {
-    if (query == "") {
-      return [];
-    }
 
     suggestions.sort(sorter);
     suggestions = suggestions.where((item) => filter(item, query)).toList();
@@ -230,7 +238,24 @@ class AutoCompleteTextFieldState<T> extends State<AutoCompleteTextField> {
   }
 
   @override
+    void initState() {
+      // TODO: implement initState
+      super.initState();
+      _focus.addListener(() {
+        setState(() {
+                });
+      });
+    }
+
+  @override
   Widget build(BuildContext context) {
     return textField;
+  }
+
+  double updateSuggestionBoxHeight() {
+    if (filteredSuggestions.length < 6) {
+      return filteredSuggestions.length * 100.0;
+    } else 
+    return 200.0;
   }
 }
